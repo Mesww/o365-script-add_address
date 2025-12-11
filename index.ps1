@@ -105,6 +105,11 @@ foreach ($Row in $Addresses) {
     $Name = $Row."Display Name"
     $Rule = $Row.Rule
     $Value = $Row.Value
+    # ** เพิ่มตัวแปรใหม่สำหรับ Container Path **
+    $ContainerPath = $Row.ContainerPath
+    # ตรวจสอบและกำหนด Container สำหรับ New-AddressList
+    # หาก $ContainerPath เป็นค่าว่าง ให้ใช้ '\' (Root)
+    $TargetContainer = if ([string]::IsNullOrEmpty($ContainerPath)) { "\" } else { $"$ContainerPath" }
     try {
         $ExistingAddress = Get-AddressList -Identity $Name -ErrorAction SilentlyContinue
         if ($ExistingAddress) {
@@ -135,12 +140,16 @@ foreach ($Row in $Addresses) {
                 # Build the recipient filter based on the rule and value
                 $RecipientFilter = "$Rule -like '$Value'"
                 
-                # Create new address list
-                New-AddressList -Name $Name -RecipientFilter $RecipientFilter -ErrorAction Stop
-                Write-Log "Created new Address: $Name with filter: $RecipientFilter"
+                # ** สร้างใหม่โดยระบุ Container **
+                # เราใช้ $TargetContainer ในการระบุตำแหน่งที่จะสร้าง
+                New-AddressList -Name $Name -Container $TargetContainer -RecipientFilter $RecipientFilter -ErrorAction Stop
+                Write-Log "Created new Address: $Name in container: $TargetContainer with filter: $RecipientFilter"
             }
             ELSE {
-                Write-Log "No Rule or Value provided for creation for Address: $Name" "WARNING"
+                # กรณีนี้ใช้สำหรับการสร้าง Container เปล่า เช่น 'SEC'
+                Write-Log "Creating Address/Container $Name in container: $TargetContainer without RecipientFilter."
+                New-AddressList -Name $Name -Container $TargetContainer -ErrorAction Stop
+                Write-Log "Created new Address/Container: $Name in container: $TargetContainer"
             }
         }
     }
